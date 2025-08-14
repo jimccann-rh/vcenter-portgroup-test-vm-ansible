@@ -28,6 +28,9 @@
 
     # Optional VM naming prefix
     vm_name_prefix: "{{ lookup('env', 'VM_NAME_PREFIX') | default('iptest-', true) }}"
+    # Optional pre-clean: delete existing VMs before deployment
+    preclean_delete_vms: "{{ lookup('env', 'PRECLEAN_DELETE_VMS') | default('false', true) | bool }}"
+    preclean_pause_seconds: "{{ lookup('env', 'PRECLEAN_PAUSE_SECONDS') | default(120, true) }}"
 
   pre_tasks:
     - name: Assert required variables are provided
@@ -57,6 +60,38 @@
     - vmware.vmware
 
   tasks:
+    - name: Pre-clean | Delete VMs matching planned names (when enabled)
+      when: preclean_delete_vms
+      vars:
+        vm_name: "{{ vm_name_prefix }}{{ item | regex_replace('[^A-Za-z0-9._-]', '-') }}"
+      community.vmware.vmware_guest:
+        hostname: "{{ vcenter_hostname } }"
+        username: "{{ vcenter_username }}"
+        password: "{{ vcenter_password }}"
+        validate_certs: "{{ vcenter_validate_certs }}"
+        datacenter: "{{ vc_datacenter }}"
+        name: "{{ vm_name }}"
+        state: absent
+        force: true
+      loop: "{{ portgroups }}"
+      loop_control:
+        label: "Delete if exists -> {{ vm_name }}"
+
+    - name: Pre-clean | Wait before prompting (when enabled)
+      when: preclean_delete_vms
+      ansible.builtin.pause:
+        seconds: "{{ preclean_pause_seconds }}"
+
+    - name: Pre-clean | Prompt to continue or quit (when enabled)
+      when: preclean_delete_vms
+      ansible.builtin.pause:
+        prompt: "Pre-clean complete. Enter 'c' to continue, anything else to quit"
+      register: preclean_prompt
+
+    - name: Pre-clean | Fail if user chose to quit (when enabled)
+      when: preclean_delete_vms and (preclean_prompt.user_input | default('') | lower) != 'c'
+      ansible.builtin.fail:
+        msg: "User aborted after pre-clean."
     - name: Ensure community.vmware prerequisites
       ansible.builtin.debug:
         msg: "Requires: community.vmware collection and pyvmomi installed on control host."
