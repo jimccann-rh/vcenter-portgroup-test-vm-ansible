@@ -26,6 +26,9 @@
 - `PORTGROUP_FILE` (defaults to `ansible/portgroups.txt`)
 - `VCENTER_VALIDATE_CERTS` (default `false`)
 
+# To enable and use defaults: export PRECLEAN_DELETE_VMS=true and run the play.
+# To change delay: export PRECLEAN_PAUSE_SECONDS=180.
+
 ### Run
 ```bash
 ansible-galaxy collection install community.vmware
