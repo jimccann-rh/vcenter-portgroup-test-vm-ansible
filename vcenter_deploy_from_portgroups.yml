@@ -65,7 +65,7 @@
       vars:
         vm_name: "{{ vm_name_prefix }}{{ item | regex_replace('[^A-Za-z0-9._-]', '-') }}"
       community.vmware.vmware_guest:
-        hostname: "{{ vcenter_hostname } }"
+        hostname: "{{ vcenter_hostname }}"
         username: "{{ vcenter_username }}"
         password: "{{ vcenter_password }}"
         validate_certs: "{{ vcenter_validate_certs }}"
