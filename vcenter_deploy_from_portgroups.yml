@@ -43,7 +43,7 @@
           - vc_cluster | length > 0
         fail_msg: "Missing required vCenter environment variables. Required: VCENTER_SERVER, VCENTER_USERNAME, VCENTER_PASSWORD, VCENTER_DATACENTER, VCENTER_CLUSTER"
 
-    - name: Ensure community.vmware prerequisites
+    - name: Ensure prerequisites
       ansible.builtin.debug:
         msg: "{{ portgroup_file }}"
 
