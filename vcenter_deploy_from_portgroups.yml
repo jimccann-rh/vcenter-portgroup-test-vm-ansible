@@ -1,0 +1,130 @@
+---
+- name: Deploy one VM per port group from Content Library template
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    # Read required vCenter connection details from environment variables
+    vcenter_hostname: "{{ lookup('env', 'VCENTER_SERVER') }}"
+    vcenter_username: "{{ lookup('env', 'VCENTER_USERNAME') }}"
+    vcenter_password: "{{ lookup('env', 'VCENTER_PASSWORD') }}"
+    vcenter_validate_certs: "{{ lookup('env', 'VCENTER_VALIDATE_CERTS') | default('false') | bool }}"
+
+    # vSphere placement (provide via env or set here)
+    vc_datacenter: "{{ lookup('env', 'VCENTER_DATACENTER') }}"
+    vc_cluster: "{{ lookup('env', 'VCENTER_CLUSTER') }}"
+    vc_folder: "{{ lookup('env', 'VCENTER_FOLDER') | default('') }}"
+    vc_datastore: "{{ lookup('env', 'VCENTER_DATASTORE') | default('vsanDatastore') }}"
+
+    # Content Library configuration
+    content_library_name: "{{ lookup('env', 'VCENTER_CONTENT_LIBRARY') | default('') }}"  # optional
+    content_library_template: "{{ lookup('env', 'VCENTER_CL_TEMPLATE') | default('IPtest') }}"
+
+    # File that contains a list of port group names (one per line)
+    portgroup_file: "{{ lookup('env', 'PORTGROUP_FILE') | default('ansible/portgroups.txt') }}"
+
+    # Optional VM naming prefix
+    vm_name_prefix: "{{ lookup('env', 'VM_NAME_PREFIX') | default('iptest-') }}"
+
+  pre_tasks:
+    - name: Assert required variables are provided
+      ansible.builtin.assert:
+        that:
+          - vcenter_hostname | length > 0
+          - vcenter_username | length > 0
+          - vcenter_password | length > 0
+          - vc_datacenter | length > 0
+          - vc_cluster | length > 0
+        fail_msg: "Missing required vCenter environment variables. Required: VCENTER_SERVER, VCENTER_USERNAME, VCENTER_PASSWORD, VCENTER_DATACENTER, VCENTER_CLUSTER"
+
+    - name: Read port group names from file
+      ansible.builtin.set_fact:
+        portgroups: "{{ lookup('ansible.builtin.file', portgroup_file).splitlines() | map('trim') | reject('match', '^#') | reject('equalto', '') | list }}"
+
+    - name: Show planned VMs
+      ansible.builtin.debug:
+        msg: "Will deploy {{ (portgroups | length) }} VMs (one per port group)."
+
+  collections:
+    - community.vmware
+
+  tasks:
+    - name: Ensure community.vmware prerequisites
+      ansible.builtin.debug:
+        msg: "Requires: community.vmware collection and pyvmomi installed on control host."
+
+    - name: Loop over portgroups and deploy VMs if absent
+      vars:
+        vm_name: "{{ vm_name_prefix }}{{ item | regex_replace('[^A-Za-z0-9._-]', '-') }}"
+      loop: "{{ portgroups }}"
+      loop_control:
+        label: "{{ item }} => {{ vm_name }}"
+      block:
+        - name: Check if VM already exists
+          community.vmware.vmware_guest_info:
+            hostname: "{{ vcenter_hostname }}"
+            username: "{{ vcenter_username }}"
+            password: "{{ vcenter_password }}"
+            validate_certs: "{{ vcenter_validate_certs }}"
+            datacenter: "{{ vc_datacenter }}"
+            name: "{{ vm_name }}"
+          register: vm_info
+          failed_when: false
+
+        - name: Deploy VM from Content Library template when absent
+          when: not vm_info.instance is defined
+          community.vmware.vmware_content_deploy_template:
+            hostname: "{{ vcenter_hostname }}"
+            username: "{{ vcenter_username }}"
+            password: "{{ vcenter_password }}"
+            validate_certs: "{{ vcenter_validate_certs }}"
+            datacenter: "{{ vc_datacenter }}"
+            cluster: "{{ vc_cluster }}"
+            folder: "{{ (vc_folder | length > 0) | ternary(vc_folder, omit) }}"
+            name: "{{ vm_name }}"
+            template: "{{ content_library_template }}"
+            library: "{{ (content_library_name | length > 0) | ternary(content_library_name, omit) }}"
+            datastore: "{{ vc_datastore }}"
+            power_on: false
+
+        - name: Connect first NIC of VM to desired port group
+          community.vmware.vmware_guest:
+            hostname: "{{ vcenter_hostname }}"
+            username: "{{ vcenter_username }}"
+            password: "{{ vcenter_password }}"
+            validate_certs: "{{ vcenter_validate_certs }}"
+            datacenter: "{{ vc_datacenter }}"
+            cluster: "{{ vc_cluster }}"
+            name: "{{ vm_name }}"
+            state: present
+            networks:
+              - name: "{{ item }}"
+                start_connected: true
+                connected: true
+          register: net_change
+
+        - name: Power on the VM
+          community.vmware.vmware_guest_powerstate:
+            hostname: "{{ vcenter_hostname }}"
+            username: "{{ vcenter_username }}"
+            password: "{{ vcenter_password }}"
+            validate_certs: "{{ vcenter_validate_certs }}"
+            datacenter: "{{ vc_datacenter }}"
+            name: "{{ vm_name }}"
+            state: powered-on
+
+  # Usage:
+  #   export VCENTER_SERVER=vcsa.example.com
+  #   export VCENTER_USERNAME='administrator@vsphere.local'
+  #   export VCENTER_PASSWORD='***'
+  #   export VCENTER_DATACENTER='DC1'
+  #   export VCENTER_CLUSTER='Cluster1'
+  #   export VCENTER_CONTENT_LIBRARY='MyLibrary'      # optional if unique across libs
+  #   export VCENTER_CL_TEMPLATE='IPtest'             # defaults to IPtest
+  #   export VCENTER_DATASTORE='vsanDatastore'        # defaults to vsanDatastore
+  #   export PORTGROUP_FILE='ansible/portgroups.txt'  # defaults to ansible/portgroups.txt
+  #   ansible-galaxy collection install community.vmware
+  #   pip install pyvmomi
+  #   ansible-playbook ansible/vcenter_deploy_from_portgroups.yml
+
