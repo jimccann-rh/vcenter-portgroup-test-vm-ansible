@@ -29,6 +29,7 @@
 ### Run
 ```bash
 ansible-galaxy collection install community.vmware
+ansible-galaxy collection install vmware.vmware
 pip install pyvmomi
 ansible-playbook ansible/vcenter_deploy_from_portgroups.yml
 ```
