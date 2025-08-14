@@ -56,63 +56,12 @@
 
     - name: Loop over portgroups and deploy VMs if absent
       vars:
+        portgroup: "{{ item }}"
         vm_name: "{{ vm_name_prefix }}{{ item | regex_replace('[^A-Za-z0-9._-]', '-') }}"
+      ansible.builtin.include_tasks: deploy_vm_from_portgroup.yml
       loop: "{{ portgroups }}"
       loop_control:
         label: "{{ item }} => {{ vm_name }}"
-      block:
-        - name: Check if VM already exists
-          community.vmware.vmware_guest_info:
-            hostname: "{{ vcenter_hostname }}"
-            username: "{{ vcenter_username }}"
-            password: "{{ vcenter_password }}"
-            validate_certs: "{{ vcenter_validate_certs }}"
-            datacenter: "{{ vc_datacenter }}"
-            name: "{{ vm_name }}"
-          register: vm_info
-          failed_when: false
-
-        - name: Deploy VM from Content Library template when absent
-          when: not vm_info.instance is defined
-          community.vmware.vmware_content_deploy_template:
-            hostname: "{{ vcenter_hostname }}"
-            username: "{{ vcenter_username }}"
-            password: "{{ vcenter_password }}"
-            validate_certs: "{{ vcenter_validate_certs }}"
-            datacenter: "{{ vc_datacenter }}"
-            cluster: "{{ vc_cluster }}"
-            folder: "{{ (vc_folder | length > 0) | ternary(vc_folder, omit) }}"
-            name: "{{ vm_name }}"
-            template: "{{ content_library_template }}"
-            library: "{{ (content_library_name | length > 0) | ternary(content_library_name, omit) }}"
-            datastore: "{{ vc_datastore }}"
-            power_on: false
-
-        - name: Connect first NIC of VM to desired port group
-          community.vmware.vmware_guest:
-            hostname: "{{ vcenter_hostname }}"
-            username: "{{ vcenter_username }}"
-            password: "{{ vcenter_password }}"
-            validate_certs: "{{ vcenter_validate_certs }}"
-            datacenter: "{{ vc_datacenter }}"
-            cluster: "{{ vc_cluster }}"
-            name: "{{ vm_name }}"
-            state: present
-            networks:
-              - name: "{{ item }}"
-                start_connected: true
-                connected: true
-          register: net_change
-
-        - name: Power on the VM
-          community.vmware.vmware_guest_powerstate:
-            hostname: "{{ vcenter_hostname }}"
-            username: "{{ vcenter_username }}"
-            password: "{{ vcenter_password }}"
-            validate_certs: "{{ vcenter_validate_certs }}"
-            datacenter: "{{ vc_datacenter }}"
-            name: "{{ vm_name }}"
-            state: powered-on
 
   # Usage:
   #   export VCENTER_SERVER=vcsa.example.com
