@@ -22,7 +22,7 @@
     content_library_template: "{{ lookup('env', 'VCENTER_CL_TEMPLATE') | default('IPtest') }}"
 
     # File that contains a list of port group names (one per line)
-    portgroup_file: "{{ lookup('env', 'PORTGROUP_FILE') | default('ansible/portgroups.txt') }}"
+    portgroup_file: "{{ lookup('env', 'PORTGROUP_FILE') | default('portgroups.txt') }}"
 
     # Optional VM naming prefix
     vm_name_prefix: "{{ lookup('env', 'VM_NAME_PREFIX') | default('iptest-') }}"
