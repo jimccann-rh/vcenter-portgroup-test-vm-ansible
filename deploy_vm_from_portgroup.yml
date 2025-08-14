@@ -24,7 +24,6 @@
     template: "{{ content_library_template }}"
     library: "{{ (content_library_name | length > 0) | ternary(content_library_name, omit) }}"
     datastore: "{{ vc_datastore }}"
-    power_on: false
 
 - name: Connect first NIC of VM to desired port group
   community.vmware.vmware_guest:
