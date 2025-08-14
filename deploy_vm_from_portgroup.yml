@@ -62,7 +62,7 @@
         connected: true
   register: net_change
 
-- name: Power on the VM
+- name: "Power on the VM {{ vm_name }}"
   community.vmware.vmware_guest_powerstate:
     hostname: "{{ vcenter_hostname }}"
     username: "{{ vcenter_username }}"
