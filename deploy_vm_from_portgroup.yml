@@ -11,19 +11,40 @@
   failed_when: false
 
 - name: Deploy VM from Content Library template when absent
-  when: not vm_info.instance is defined
-  community.vmware.vmware_content_deploy_template:
+  when:
+    - not vm_info.instance is defined
+    - content_library_item_type == 'template'
+  vmware.vmware.deploy_content_library_template:
     hostname: "{{ vcenter_hostname }}"
     username: "{{ vcenter_username }}"
     password: "{{ vcenter_password }}"
     validate_certs: "{{ vcenter_validate_certs }}"
     datacenter: "{{ vc_datacenter }}"
-    cluster: "{{ vc_cluster }}"
-    folder: "{{ (vc_folder | length > 0) | ternary(vc_folder, omit) }}"
-    name: "{{ vm_name }}"
-    template: "{{ content_library_template }}"
-    library: "{{ (content_library_name | length > 0) | ternary(content_library_name, omit) }}"
+    vm_name: "{{ vm_name }}"
+    library_item_name: "{{ content_library_template }}"
+    library_name: "{{ (content_library_name | length > 0) | ternary(content_library_name, omit) }}"
     datastore: "{{ vc_datastore }}"
+    cluster: "{{ vc_cluster }}"
+    vm_folder: "{{ (vc_folder | length > 0) | ternary(vc_folder, omit) }}"
+    power_on_after_deploy: false
+
+- name: Deploy VM from Content Library OVF when absent
+  when:
+    - not vm_info.instance is defined
+    - content_library_item_type == 'ovf'
+  vmware.vmware.deploy_content_library_ovf:
+    hostname: "{{ vcenter_hostname }}"
+    username: "{{ vcenter_username }}"
+    password: "{{ vcenter_password }}"
+    validate_certs: "{{ vcenter_validate_certs }}"
+    datacenter: "{{ vc_datacenter }}"
+    vm_name: "{{ vm_name }}"
+    library_item_name: "{{ content_library_template }}"
+    library_name: "{{ (content_library_name | length > 0) | ternary(content_library_name, omit) }}"
+    datastore: "{{ vc_datastore }}"
+    cluster: "{{ vc_cluster }}"
+    vm_folder: "{{ (vc_folder | length > 0) | ternary(vc_folder, omit) }}"
+    power_on_after_deploy: false
 
 - name: Connect first NIC of VM to desired port group
   community.vmware.vmware_guest:

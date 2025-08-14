@@ -20,6 +20,8 @@
     # Content Library configuration
     content_library_name: "{{ lookup('env', 'VCENTER_CONTENT_LIBRARY') | default('', true) }}"  # optional
     content_library_template: "{{ lookup('env', 'VCENTER_CL_TEMPLATE') | default('IPtest', true) }}"
+    # Specify the library item type: 'template' for vmtx template, 'ovf' for OVF item
+    content_library_item_type: "{{ lookup('env', 'VCENTER_CL_ITEM_TYPE') | default('template', true) }}"
 
     # File that contains a list of port group names (one per line)
     portgroup_file: "{{ lookup('env', 'PORTGROUP_FILE') | default('portgroups.txt', true) }}"
@@ -52,6 +54,7 @@
 
   collections:
     - community.vmware
+    - vmware.vmware
 
   tasks:
     - name: Ensure community.vmware prerequisites
