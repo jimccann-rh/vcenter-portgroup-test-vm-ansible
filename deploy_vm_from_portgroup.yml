@@ -1,5 +1,5 @@
 ---
-- name: Check if VM already exists
+- name: "Check if VM already exists {{ vm_name }}"
   community.vmware.vmware_guest_info:
     hostname: "{{ vcenter_hostname }}"
     username: "{{ vcenter_username }}"
@@ -10,7 +10,7 @@
   register: vm_info
   failed_when: false
 
-- name: Deploy VM from Content Library template when absent
+- name: "Deploy VM from Content Library template when absent {{ vm_name }}"
   when:
     - not vm_info.instance is defined
     - content_library_item_type == 'template'
@@ -28,7 +28,7 @@
     vm_folder: "{{ (vc_folder | length > 0) | ternary(vc_folder, omit) }}"
     power_on_after_deploy: false
 
-- name: Deploy VM from Content Library OVF when absent
+- name: "Deploy VM from Content Library OVF when absent {{ vm_name }}"
   when:
     - not vm_info.instance is defined
     - content_library_item_type == 'ovf'
@@ -46,7 +46,7 @@
     vm_folder: "{{ (vc_folder | length > 0) | ternary(vc_folder, omit) }}"
     power_on_after_deploy: false
 
-- name: Connect first NIC of VM to desired port group
+- name: "Connect first NIC of VM to desired port group {{ vm_name }}"
   community.vmware.vmware_guest:
     hostname: "{{ vcenter_hostname }}"
     username: "{{ vcenter_username }}"
